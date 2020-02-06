@@ -29,11 +29,7 @@
 				<td>Schedule (cron)</td>
 				<td>
 					<code>
-						{{ obj.run_at_minute if obj.run_at_minute is not none else '*' }}
-						{{ obj.run_at_hour if obj.run_at_hour is not none else '*' }}
-						{{ obj.run_at_day if obj.run_at_day is not none else '*' }}
-						{{ obj.run_at_month if obj.run_at_month is not none else '*' }}
-						{{ obj.run_at_day_of_week if obj.run_at_day_of_week is not none else '*' }}
+						{{ obj.run_at }}
 					</code>
 				</td>
 			</tr>

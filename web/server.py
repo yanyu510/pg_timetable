@@ -1,8 +1,9 @@
 from flask import Flask
 from flask import escape, request, redirect, render_template, abort
-from wtforms import Form, BooleanField, SelectField, StringField, TextAreaField, validators, IntegerField, ValidationError, SelectMultipleField
+from wtforms import Form, BooleanField, SelectField, StringField, TextAreaField, validators, IntegerField, ValidationError, SelectMultipleField, Label
 from wtforms.validators import StopValidation
 from wtforms.widgets.html5 import NumberInput
+from wtforms.widgets.core import HTMLString, html_params
 import os
 import re
 import json
@@ -275,7 +276,7 @@ class Model(object):
         return result
 
     def get_next_jobs(self):
-        self.cur.execute("SELECT chain_execution_config, chain_name, timetable.next_run(run_at_minute,run_at_hour,run_at_day,run_at_month,run_at_day_of_week) next_run FROM timetable.chain_execution_config where live = TRUE order by next_run")
+        self.cur.execute("SELECT chain_execution_config, chain_name, timetable.next_run(run_at) next_run FROM timetable.chain_execution_config where live = TRUE order by next_run")
         records = self.cur.fetchall()
         result = []
         for row in records:
@@ -284,7 +285,7 @@ class Model(object):
 
 
     def get_self_destructive_chains(self):
-        self.cur.execute("SELECT chain_execution_config, chain_id, chain_name, run_at_minute, run_at_hour, run_at_day, run_at_month, run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where self_destruct=TRUE ")
+        self.cur.execute("SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where self_destruct=TRUE ")
         records = self.cur.fetchall()
         result = []
         for row in records:
@@ -324,30 +325,26 @@ class Model(object):
 
     def get_all_chain_configs(self):
         self.cur.execute(
-            "SELECT chain_execution_config, chain_id, chain_name, run_at_minute, run_at_hour, run_at_day, run_at_month, run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config"
+            "SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config"
         )
         records = self.cur.fetchall()
         result = []
         for row in records:
-            result.append(Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at_minute=row[3], run_at_hour=row[4], run_at_day=row[5], run_at_month=row[6], run_at_day_of_week=row[7], max_instances=row[8], live=row[9], self_destruct=row[10], exclusive_execution=row[11], excluded_execution_configs=row[12], client_name=row[13]))
+            result.append(Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], max_instances=row[4], live=row[5], self_destruct=row[6], exclusive_execution=row[7], excluded_execution_configs=row[8], client_name=row[9]))
         return result
 
-    def save_chain_config(self, commit=True):
-        if self.chain_id is None and self.task_id is not None:
+    def save_chain_config(self):
+        if hasattr(self, "task_id") and self.task_id is not None:
             self.cur.execute(
                 "INSERT INTO timetable.task_chain (parent_id, task_id, run_uid, database_connection, ignore_error) VALUES (DEFAULT, %s, DEFAULT, DEFAULT, DEFAULT) RETURNING chain_id", (self.task_id,))
             self.chain_id = self.cur.fetchone()[0]
-            print(self.chain_id)
         if self.chain_execution_config is None:
             self.cur.execute(
-                "INSERT INTO timetable.chain_execution_config (chain_name, chain_id, run_at_minute, run_at_hour, run_at_day, run_at_month, run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (self.chain_name, self.chain_id, self.run_at_minute, self.run_at_hour, self.run_at_day, self.run_at_month, self.run_at_day_of_week, self.max_instances, self.live, self.self_destruct, self.exclusive_execution, self.excluded_execution_configs, self.client_name))
+                "INSERT INTO timetable.chain_execution_config (chain_name, chain_id, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", (self.chain_name, self.chain_id, self.run_at, self.max_instances, self.live, self.self_destruct, self.exclusive_execution, self.excluded_execution_configs, self.client_name))
         else:
             self.cur.execute(
-                "UPDATE timetable.chain_execution_config SET chain_execution_config = %s, chain_id = %s, chain_name = %s, run_at_minute = %s, run_at_hour = %s, run_at_day = %s, run_at_month = %s, run_at_day_of_week = %s, max_instances = %s, live = %s, self_destruct = %s, exclusive_execution = %s, excluded_execution_configs = %s, client_name = %s where chain_execution_config = %s", (self.chain_execution_config, self.chain_id, self.chain_name, self.run_at_minute, self.run_at_hour, self.run_at_day, self.run_at_month, self.run_at_day_of_week, self.max_instances, self.live, self.self_destruct, self.exclusive_execution, self.excluded_execution_configs, self.client_name, self.chain_execution_config))
-            #In case we want to add more records, we don't want to override existing one
-            self.chain_execution_config = None
-        if commit:
-            self.conn.commit()
+                "UPDATE timetable.chain_execution_config SET chain_name = %s, run_at = %s, max_instances = %s, live = %s, self_destruct = %s, exclusive_execution = %s, excluded_execution_configs = %s, client_name = %s where chain_execution_config = %s", (self.chain_name, self.run_at, self.max_instances, self.live, self.self_destruct, self.exclusive_execution, self.excluded_execution_configs, self.client_name, self.chain_execution_config))
+        self.conn.commit()
 
     def commit(self):
         self.conn.commit()
@@ -355,24 +352,24 @@ class Model(object):
 
     def get_chain_config_by_id(self, id):
         self.cur.execute(
-            "SELECT chain_execution_config, chain_id, chain_name, run_at_minute, run_at_hour, run_at_day, run_at_month, run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_execution_config = %s", (id,)
+            "SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_execution_config = %s", (id,)
         )
         records = self.cur.fetchall()
         if len(records) == 0:
             return None
         row = records[0]
-        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at_minute=row[3], run_at_hour=row[4], run_at_day=row[5], run_at_month=row[6], run_at_day_of_week=row[7], max_instances=row[8], live=row[9], self_destruct=row[10], exclusive_execution=row[11], excluded_execution_configs=row[12], client_name=row[13], chain=self.get_chain_by_id(row[1]))
+        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], max_instances=row[4], live=row[5], self_destruct=row[6], exclusive_execution=row[7], excluded_execution_configs=row[8], client_name=row[9], chain=self.get_chain_by_id(row[1]))
         return result
 
     def get_chain_config_by_name(self, name):
         self.cur.execute(
-            "SELECT chain_execution_config, chain_id, chain_name, run_at_minute, run_at_hour, run_at_day, run_at_month, run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_name = %s", (name,)
+            "SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_name = %s", (name,)
         )
         records = self.cur.fetchall()
         if len(records) == 0:
             return None
         row = records[0]
-        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at_minute=row[3], run_at_hour=row[4], run_at_day=row[5], run_at_month=row[6], run_at_day_of_week=row[7], max_instances=row[8], live=row[9], self_destruct=row[10], exclusive_execution=row[11], excluded_execution_configs=row[12], client_name=row[13])
+        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], max_instances=row[4], live=row[5], self_destruct=row[6], exclusive_execution=row[7], excluded_execution_configs=row[8], client_name=row[9])
         return result
 
 def validate_db_connection(s):
@@ -394,6 +391,42 @@ class MyBooleanField(BooleanField):
     def process_data(self, value):
         self.data = bool(value)
         self.checked = bool(value)
+
+    def process_formdata(self, valuelist):
+        if valuelist and valuelist[0] in self.false_values:
+            self.data = False
+
+
+class MyButtonLabel(Label):
+    def __init__(self, field, field_id, text):
+        self.field = field
+        self.field_id = field_id
+        self.text = text
+
+    def __call__(self, text=None, **kwargs):
+        if 'for_' in kwargs:
+            kwargs['for'] = kwargs.pop('for_')
+        else:
+            kwargs.setdefault('for', self.field_id)
+
+        attributes = html_params(**kwargs)
+        kwargs_button = {
+                'class': "btn btn-secondary btn-sm m-0" + (" active" if self.field.data else ""),
+                'data-toggle': "button",
+                'aria-pressed': str(self.field.data).lower()
+                }
+        button_attributes = html_params(**kwargs_button)
+        return HTMLString('<label %s><button %s>%s</button></label>' % (attributes, button_attributes, text or self.text))
+
+
+class MyButtonBooleanField(BooleanField):
+    def __init__(self, label=None, **kwargs):
+        super(MyButtonBooleanField, self).__init__(label, **kwargs)
+        self.label = MyButtonLabel(self, self.id, label if label is not None else self.gettext(self.short_name.replace('_', ' ').title()))
+
+    def process_formdata(self, valuelist):
+        if valuelist and valuelist[0] in self.false_values:
+            self.data = False
 
 class ChainForm(Form):
     task_id = SelectField("Task id", coerce=empty_or_integer, choices=[(t.task_id, f'{t.task_id}. {t.task_name}') for t in Model().get_all_tasks()])
@@ -435,11 +468,15 @@ def run_at_filter(i, raise_error=False):
         return [int(j) for j in i]
 
 
+
+cron_re = re.compile(r"(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})")
+
 class ChainExecutionConfigForm(Form):
-    chain_id = SelectField("Chain", coerce=empty_or_integer, choices=[(c.chain_id, c.chain_id) for c in Model().get_all_chains()])
+    chain_execution_config = StringField("chain_execution_config")
     task_id = SelectField("Task type", coerce=empty_or_integer)
     chain_name = StringField("Chain name", filters=[lambda i: i or None])
-    run_at = StringField("Cron style schedule", filters=[lambda i: i or None])
+    run_at = StringField("Cron style schedule", filters=[lambda i: ' '.join(i.split()) or None])
+    advanced_schedule = MyButtonBooleanField("Toggle advanced mode", default=True, render_kw={"hidden":True})
     run_at_minute = SelectMultipleField("Run at minute", coerce=empty_or_integer, choices=[(i, i) for i in range(0,60, 5)], filters=[run_at_filter])
     run_at_hour = SelectMultipleField("Run at hour", coerce=empty_or_integer, choices=[(i, i) for i in range(0,24)], filters=[run_at_filter])
     run_at_day = SelectMultipleField("Run at day", coerce=empty_or_integer, choices=[(i, i) for i in range(0,31)], filters=[run_at_filter])
@@ -456,7 +493,7 @@ class ChainExecutionConfigForm(Form):
         if field.data is None:
             raise ValidationError("Chain name must be set!")
         c = Model().get_chain_config_by_name(field.data)
-        if hasattr(c, "chain_id") and c.chain_id != form.chain_id.data:
+        if hasattr(c, "chain_id") and c.chain_execution_config != form.chain_execution_config.data:
             raise ValidationError("Chain name must be unique!")
 
     def _validate_run_at(form, field):
@@ -465,6 +502,11 @@ class ChainExecutionConfigForm(Form):
         except ValueError:
             raise StopValidation("Is not a number")
         field.data = data
+
+    def validate_run_at(form, field):
+        if field.data is not None:
+            if not cron_re.match(field.data):
+                raise ValidationError("is not valid cron format")
 
     def validate_run_at_minute(form, field):
         form._validate_run_at(field)
@@ -595,7 +637,6 @@ def delete_chain(chain_id, chain_execution_config):
 def add_chain_execution_configs():
     db = Model(chain_execution_config=None)
     form = ChainExecutionConfigForm(request.form)
-    form.chain_id.choices = [(c.chain_id, c.chain_id) for c in db.get_all_chains()] + [(None, "Add new chain")]
     form.task_id.choices = [(t.task_id, f'{t.task_id}. {t.task_name}') for t in db.get_all_tasks()]
     if request.method == 'POST' and form.validate():
 
@@ -610,17 +651,8 @@ def add_chain_execution_configs():
             # CRON style
             cron = f"{cron_run_at_minute} {cron_run_at_hour} {cron_run_at_day} {cron_run_at_month} {cron_run_at_day_of_week}"
 
-        db.update(task_id=form.task_id.data, chain_id=form.chain_id.data)
-        cron_matrix = [[(x if x !='*' else None) for x in s.split(',')] for s in cron.split(' ')]
-        for run_at_minute in cron_matrix[0]:
-            for run_at_hour in cron_matrix[1]:
-                for run_at_day in cron_matrix[2]:
-                    for run_at_month in cron_matrix[3]:
-                        for run_at_day_of_week in cron_matrix[4]:
-
-                            db.update(chain_name=f"{form.chain_name.data}-{run_at_minute or '*'}_{run_at_hour or '*'}_{run_at_day or '*'}_{run_at_month or '*'}_{run_at_day_of_week or '*'}", run_at_minute=run_at_minute, run_at_hour=run_at_hour, run_at_day=run_at_day, run_at_month=run_at_month, run_at_day_of_week=run_at_day_of_week, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
-                            db.save_chain_config(commit=False)
-        db.commit()
+        db.update(task_id=form.task_id.data, chain_name=form.chain_name.data, run_at=cron, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
+        db.save_chain_config()
         return redirect(f"/chain_execution_config/", code=302)
     return render_template("edit_chain_execution_config.html", form=form)
 
@@ -642,11 +674,10 @@ def edit_chain_execution_configs(id):
     db = Model(chain_execution_config=id)
     obj = db.get_chain_config_by_id(id)
     form = ChainExecutionConfigForm(request.form, obj=obj)
+    form.chain_execution_config.data = id
     form.task_id.choices = [(None, "")]
     if request.method == 'POST' and form.validate():
 
-        suffix = re.compile('-[0-9*]+_[0-9*]+_[0-9*]+_[0-9*]+_[0-9*]+')
-        chain_name = suffix.sub("", form.chain_name.data)
         if form.run_at.data != None:
             cron = form.run_at.data
         else:
@@ -658,22 +689,10 @@ def edit_chain_execution_configs(id):
             # CRON style
             cron = f"{cron_run_at_minute} {cron_run_at_hour} {cron_run_at_day} {cron_run_at_month} {cron_run_at_day_of_week}"
 
-        cron_matrix = [[(x if x !='*' else None) for x in s.split(',')] for s in cron.split(' ')]
-        for run_at_minute in cron_matrix[0]:
-            for run_at_hour in cron_matrix[1]:
-                for run_at_day in cron_matrix[2]:
-                    for run_at_month in cron_matrix[3]:
-                        for run_at_day_of_week in cron_matrix[4]:
 
-                            db.update(chain_id=form.chain_id.data, task_id=form.task_id.data, chain_name=f"{chain_name}-{run_at_minute or '*'}_{run_at_hour or '*'}_{run_at_day or '*'}_{run_at_month or '*'}_{run_at_day_of_week or '*'}", run_at_minute=run_at_minute, run_at_hour=run_at_hour, run_at_day=run_at_day, run_at_month=run_at_month, run_at_day_of_week=run_at_day_of_week, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
-                            db.save_chain_config(commit=False)
-        db.commit()
+        db.update(chain_name=form.chain_name.data, run_at=cron, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
+        db.save_chain_config()
         return redirect(f"/chain_execution_config/{id}/", code=302)
-    form.run_at_minute.process_data([obj.run_at_minute] if obj.run_at_minute is not None else [])
-    form.run_at_hour.process_data([obj.run_at_hour] if obj.run_at_hour is not None else [])
-    form.run_at_day.process_data([obj.run_at_day] if obj.run_at_day is not None else [])
-    form.run_at_month.process_data([obj.run_at_month] if obj.run_at_month is not None else [])
-    form.run_at_day_of_week.process_data([obj.run_at_day_of_week] if obj.run_at_day_of_week is not None else [])
     return render_template("edit_chain_execution_config.html", form=form)
 
 

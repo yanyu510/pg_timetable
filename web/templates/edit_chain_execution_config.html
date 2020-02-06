@@ -7,7 +7,6 @@
           {% from "_formhelpers.html" import render_field %}
           <form id="editchainconfigform" action="." method="post">
             <dl>
-              {{ render_field(form.chain_id, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary") }}
               {% if form.task_id.choices|length > 0 and not form.task_id.choices.0.0 is none %}
                 {{ render_field(form.task_id, class="form-control selectpicker", data_style="btn-secondary") }}
               {% endif %}
@@ -16,16 +15,17 @@
               <div class="border rounded p-1 mb-4" id="schedule">
                 <div class="d-flex justify-content-center align-items-center">
                   <h3 class="m-0">Schedule</h3>
-                  <button type="checkbox" class="btn btn-secondary btn-sm  m-0" data-toggle="button" aria-pressed="false" id="advanced_schedule">Toggle advanced mode</button>
+		  {# {{ form.advanced_schedule(**{"class":"btn btn-secondary btn-sm  m-0" + (" active" if form.advanced_schedule.data else ""), "data-toggle":"button", "value":("true" if form.advanced_schedule.data else "false"), "aria-pressed":("true" if form.advanced_schedule.data else "false")})}} #}
+                  {{ render_field(form.advanced_schedule, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                 </div>
-                <div>
+		<div class="{{ ("d-none" if form.advanced_schedule.data else "") }}">
                   {{ render_field(form.run_at_minute, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_hour, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_day, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_month, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_day_of_week, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary") }}
                 </div>
-                <div class="d-none">
+		<div class="{{ ("" if form.advanced_schedule.data else "d-none") }}">
                   {{ render_field(form.run_at, class="form-control" + (" is-invalid" if form.errors else "")) }}
                 </div>
               </div>
@@ -46,7 +46,7 @@
 
 {% block javascripts %}
 <script>
-$("#advanced_schedule").on("click", function(){
+$("label[for=advanced_schedule] button").on("click", function(){
   $("#schedule > div").each(function() {
     $(this).toggleClass("d-none")
   })
