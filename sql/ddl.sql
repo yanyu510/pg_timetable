@@ -249,67 +249,49 @@ BEGIN
 		RETURN true;
 END
 $$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION timetable.next_run(minute integer, hour integer, day integer, month integer, dow integer) RETURNS timestamp without time zone AS $$
+CREATE OR REPLACE FUNCTION timetable.next_run(run_at timetable.cron)
+ RETURNS timestamp without time zone
+AS $$
 DECLARE
-next_minute timestamp :=  date_trunc('minute', (now() + interval '59 second'));
-v_year timestamp := date_trunc('year', next_minute);
-v_month interval := (date_part('month', next_minute)-1||' month')::interval;
-v_day interval := (date_part('day', next_minute)-1||' day')::interval;
-v_hour interval := (date_part('hour', next_minute)||' hour')::interval;
-v_minute interval := (date_part('minute', next_minute)||' minute')::interval;
-v_difference interval;
+a_by_minute integer[];
+a_by_hour integer[];
+a_by_day integer[];
+a_by_month integer[];
+a_by_day_of_week integer[];
+m_minutes integer[];
+m_hours integer[];
+m_days integer[];
+m_months integer[];
+time timestamp;
+now timestamp := now();
 BEGIN
-IF month IS NOT NULL THEN
-    v_month := (month-1 || ' month')::interval;
-    v_day := interval '0 day';
-    v_hour := interval '0 hour';
-    v_minute := interval '0 minute';
-END IF;
-IF day IS NOT NULL THEN
-    v_day := (day-1 || ' day')::interval;
-    v_hour := interval '0 hour';
-    v_minute := interval '0 minute';
-END IF;
-IF hour IS NOT NULL THEN
-    v_hour := (hour || ' hour')::interval;
-    v_minute := interval '0 minute';
-END IF;
-IF minute IS NOT NULL THEN
-    v_minute := (minute || ' minute')::interval;
-END IF;
-LOOP
-    EXIT WHEN (v_day + v_month + v_year + v_hour + v_minute) >= next_minute;
-    v_difference := next_minute - (v_day + v_month + v_year + v_hour + v_minute);
-    IF v_difference < interval '1 hour' and minute IS NULL THEN
-        v_minute := v_minute + (date_part('minute', v_difference)||' minute')::interval + interval '1 minute';
-    ELSE
-        IF minute IS NULL THEN
-           v_minute := interval '0 minute';
-        END IF;
-        IF v_difference < interval '1 day' and hour IS NULL THEN
-            v_hour := v_hour + (date_part('hour', v_difference)||' hour')::interval + interval '1 hour';
-        ELSE
-            IF hour IS NULL THEN
-               v_hour := interval '0 hour';
-            END IF;
-            IF v_difference < interval '1 month' and day IS NULL THEN
-                v_day := v_day + (date_part('day', v_difference)||' day')::interval + interval '1 day';
-            ELSE
-                IF day IS NULL THEN
-                   v_day := interval '0 day';
-                END IF;
-                IF v_difference < interval '1 year' and month IS NULL THEN
-                    v_month := v_month + (date_part('month', v_difference)||' month')::interval + interval '1 month';
-                ELSE
-                    v_year := v_year + interval '1 year';
-                    IF month IS NULL THEn
-                       v_month := interval '0 month';
-                    END IF;
-                END IF;
-            END IF;
-        END IF;
-    END IF;
-END LOOP;
-RETURN   (v_day + v_month + v_year + v_hour + v_minute);
+a_by_minute := timetable.cron_element_to_array(run_at, 'minute');
+a_by_hour := timetable.cron_element_to_array(run_at, 'hour');
+a_by_day := timetable.cron_element_to_array(run_at, 'day');
+a_by_month := timetable.cron_element_to_array(run_at, 'month');
+a_by_day_of_week := timetable.cron_element_to_array(run_at, 'day_of_week');
+
+m_minutes := ARRAY_AGG(minute) from (
+	select CASE WHEN minute IS NULL THEN date_part('minute', now + interval '1 minute') ELSE minute END  as minute from (select minute from (select unnest(a_by_minute) as minute) as p1 where minute > date_part('minute', now) or minute is null order by minute limit 1) as p2 union
+	select CASE WHEN minute IS NULL THEN 0 ELSE minute END as minute from (select min(minute) as minute from (select unnest(a_by_minute) as minute) as p3) p4) p5;
+
+m_hours := ARRAY_AGG(hour) from (
+	select CASE WHEN hour IS NULL THEN date_part('hour', now) ELSE hour END  as hour from (select hour from (select unnest(a_by_hour) as hour) as p1 where hour = date_part('hour', now) or hour is null order by hour limit 1) as p2 union
+	select CASE WHEN hour IS NULL THEN date_part('hour', now + interval '1 hour') ELSE hour END  as hour from (select hour from (select unnest(a_by_hour) as hour) as p1 where hour > date_part('hour', now) or hour is null order by hour limit 1) as p2 union
+	select CASE WHEN hour IS NULL THEN 0 ELSE hour END as hour from (select min(hour) as hour from (select unnest(a_by_hour) as hour) as p3) p4) p5;
+
+m_days := ARRAY_AGG(day) from (
+	select CASE WHEN day IS NULL THEN date_part('day', now) ELSE day END  as day from (select day from (select unnest(a_by_day) as day) as p1 where day = date_part('day', now) or day is null order by day limit 1) as p2 union
+	select CASE WHEN day IS NULL THEN date_part('day', now + interval '1 day') ELSE day END  as day from (select day from (select unnest(a_by_day) as day) as p1 where day > date_part('day', now) or day is null order by day limit 1) as p2 union
+	select CASE WHEN day IS NULL THEN 1 ELSE day END as day from (select min(day) as day from (select unnest(a_by_day) as day) as p3) p4) p5;
+
+m_months := ARRAY_AGG(month) from (
+	select CASE WHEN month IS NULL THEN date_part('month', now) ELSE month END  as month from (select month from (select unnest(a_by_month) as month) as p1 where month = date_part('month', now) or month is null order by month limit 1) as p2 union
+	select CASE WHEN month IS NULL THEN date_part('month', now + interval '1 month') ELSE month END  as month from (select month from (select unnest(a_by_month) as month) as p1 where month > date_part('month', now) or month is null order by month limit 1) as p2 union
+	select CASE WHEN month IS NULL THEN 1 ELSE month END as month from (select min(month) as month from (select unnest(a_by_month) as month) as p3) p4) p5;
+
+time := min(date) from (select to_timestamp((year::text || '-' || month::text || '-' || day::text || ' ' || hour::text || ':' || minute::text)::text, 'YYYY-MM-DD HH24:MI') as date from (select  unnest(m_days) as day) as days CROSS JOIN (select unnest(m_months) as month) as months CROSS JOIN (select date_part('year', now) as year union select date_part('year', now + interval '1 year') as year) as years CROSS JOIN (select unnest(m_hours) as hour) as hours CROSS JOIN (select unnest(m_minutes) as minute) as minutes) as dates where date > date_trunc('minute', now);
+
+RETURN time;
 END;
 $$ LANGUAGE plpgsql;

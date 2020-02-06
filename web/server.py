@@ -395,6 +395,8 @@ class MyBooleanField(BooleanField):
     def process_formdata(self, valuelist):
         if valuelist and valuelist[0] in self.false_values:
             self.data = False
+        elif valuelist:
+            self.data = True
 
 
 class MyButtonLabel(Label):
@@ -688,7 +690,6 @@ def edit_chain_execution_configs(id):
             cron_run_at_day_of_week = ",".join([str(t) for t in form.run_at_day_of_week.data])   if len(form.run_at_day_of_week.data)    > 0 else "*"
             # CRON style
             cron = f"{cron_run_at_minute} {cron_run_at_hour} {cron_run_at_day} {cron_run_at_month} {cron_run_at_day_of_week}"
-
 
         db.update(chain_name=form.chain_name.data, run_at=cron, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
         db.save_chain_config()
