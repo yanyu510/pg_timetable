@@ -276,11 +276,11 @@ class Model(object):
         return result
 
     def get_next_jobs(self):
-        self.cur.execute("SELECT chain_execution_config, chain_name, timetable.next_run(run_at) next_run FROM timetable.chain_execution_config where live = TRUE order by next_run")
+        self.cur.execute("SELECT chain_execution_config, chain_name, timetable.next_run(run_at) next_run, run_at, live FROM timetable.chain_execution_config where live = TRUE order by next_run")
         records = self.cur.fetchall()
         result = []
         for row in records:
-            result.append(Object(chain_execution_config=row[0], chain_name=row[1], next_run=row[2]))
+            result.append(Object(chain_execution_config=row[0], chain_name=row[1], next_run=row[2], run_at=row[3], live=row[4]))
         return result
 
 

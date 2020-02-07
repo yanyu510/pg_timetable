@@ -1,13 +1,65 @@
 {% extends "base.html" %}
 {% block body %}
 <h6>jobs executed successfully or failed in the past 7 days</h6>
-{% for obj in last_jobs %}
-<p>{{ obj }}</p>
-{% endfor %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>day</th>
+      <th>return code</th>
+      <th>all</th>
+      <th>success</th>
+      <th>fail</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for obj in last_jobs %}
+    <tr>
+      <td>{{ (obj.day.strftime('%Y-%m-%d') if obj.day is not none else "") }}</td>
+      <td>
+          <span >{{ obj.returncode }}</span >
+      </td>
+      <td>
+          <span >{{ obj.all }}</span >
+      </td>
+      <td>
+          <span >{{ obj.successful }}</span >
+      </td>
+      <td>
+          <span >{{ obj.failures }}</span >
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 <h6>next jobs to be executed</h6>
-{% for obj in next_jobs %}
-<p>{{ obj }}</p>
-{% endfor %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>name</th>
+      <th>is live</th>
+      <th>schedule</th>
+      <th>next run</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for obj in next_jobs %}
+    <tr>
+      <td><a href="/chain_execution_config/{{ obj.chain_execution_config }}/" >{{ obj.chain_name }}</a ></td>
+      <td><span>{{ '✓' if obj.live else '✕' }}</span></td>
+      <td>
+        <code>
+          <span >{{ obj.run_at }}</span >
+        </code>
+      </td>
+      <td>
+        <code>
+          <span >{{ obj.next_run }}</span >
+        </code>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 <h6>number of chains scheduled</h6>
 {{ next_jobs|length }}
 <h6>number of self-destructive chains</h6>
