@@ -44,3 +44,8 @@ Footer
     background-position: 0;
     background-repeat: no-repeat;
 }
+
+label.is-invalid {
+    font-size: 80%;
+    color: #f44336;
+}

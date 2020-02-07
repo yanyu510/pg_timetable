@@ -433,13 +433,16 @@ def run_at_filter(i, raise_error=False):
 
 
 
-cron_re = re.compile(r"(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})")
+cron_re = re.compile(r"^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) +){4}(([0-7],)+[0-7]|([0-7](\/|-)[0-7])|[0-7]|\*))$")
 
 class ChainExecutionConfigForm(Form):
     chain_execution_config = StringField("chain_execution_config")
     task_id = SelectField("Task type", coerce=empty_or_integer)
     chain_name = StringField("Chain name", filters=[lambda i: i or None])
-    run_at = StringField("Cron style schedule", filters=[lambda i: ' '.join(i.split()) or None])
+    run_at = StringField("Cron style schedule", filters=[lambda i: ' '.join(i.split()) or None], render_kw={
+        "data-msg": "is required if you use advanced mode",
+        "data-msg-regex": "must be valid cron format",
+        })
     advanced_schedule = MyBooleanField("Toggle advanced mode", default=True)
     run_at_minute = SelectMultipleField("Run at minute", coerce=empty_or_integer, choices=[(i, i) for i in range(0,60, 5)], filters=[run_at_filter])
     run_at_hour = SelectMultipleField("Run at hour", coerce=empty_or_integer, choices=[(i, i) for i in range(0,24)], filters=[run_at_filter])
@@ -471,6 +474,10 @@ class ChainExecutionConfigForm(Form):
         if field.data is not None:
             if not cron_re.match(field.data):
                 raise ValidationError("is not valid cron format")
+        else:
+            if form.advanced_schedule.data:
+                raise ValidationError("is required if you use advanced mode")
+
 
     def validate_run_at_minute(form, field):
         form._validate_run_at(field)
