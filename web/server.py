@@ -352,13 +352,13 @@ class Model(object):
 
     def get_chain_config_by_id(self, id):
         self.cur.execute(
-            "SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_execution_config = %s", (id,)
+            "SELECT chain_execution_config, chain_id, chain_name, run_at, timetable.cron_element_to_array(run_at, 'minute') as run_at_minute, timetable.cron_element_to_array(run_at, 'hour') as run_at_hour, timetable.cron_element_to_array(run_at, 'day') as run_at_day, timetable.cron_element_to_array(run_at, 'month') as run_at_month, timetable.cron_element_to_array(run_at, 'day_of_week') as run_at_day_of_week, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config where chain_execution_config = %s", (id,)
         )
         records = self.cur.fetchall()
         if len(records) == 0:
             return None
         row = records[0]
-        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], max_instances=row[4], live=row[5], self_destruct=row[6], exclusive_execution=row[7], excluded_execution_configs=row[8], client_name=row[9], chain=self.get_chain_by_id(row[1]))
+        result = Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], run_at_minute=row[4], run_at_hour=row[5], run_at_day=row[6], run_at_month=row[7], run_at_day_of_week=row[8], max_instances=row[9], live=row[10], self_destruct=row[11], exclusive_execution=row[12], excluded_execution_configs=row[13], client_name=row[14], chain=self.get_chain_by_id(row[1]))
         return result
 
     def get_chain_config_by_name(self, name):
@@ -391,44 +391,6 @@ class MyBooleanField(BooleanField):
     def process_data(self, value):
         self.data = bool(value)
         self.checked = bool(value)
-
-    def process_formdata(self, valuelist):
-        if valuelist and valuelist[0] in self.false_values:
-            self.data = False
-        elif valuelist:
-            self.data = True
-
-
-class MyButtonLabel(Label):
-    def __init__(self, field, field_id, text):
-        self.field = field
-        self.field_id = field_id
-        self.text = text
-
-    def __call__(self, text=None, **kwargs):
-        if 'for_' in kwargs:
-            kwargs['for'] = kwargs.pop('for_')
-        else:
-            kwargs.setdefault('for', self.field_id)
-
-        attributes = html_params(**kwargs)
-        kwargs_button = {
-                'class': "btn btn-secondary btn-sm m-0" + (" active" if self.field.data else ""),
-                'data-toggle': "button",
-                'aria-pressed': str(self.field.data).lower()
-                }
-        button_attributes = html_params(**kwargs_button)
-        return HTMLString('<label %s><button %s>%s</button></label>' % (attributes, button_attributes, text or self.text))
-
-
-class MyButtonBooleanField(BooleanField):
-    def __init__(self, label=None, **kwargs):
-        super(MyButtonBooleanField, self).__init__(label, **kwargs)
-        self.label = MyButtonLabel(self, self.id, label if label is not None else self.gettext(self.short_name.replace('_', ' ').title()))
-
-    def process_formdata(self, valuelist):
-        if valuelist and valuelist[0] in self.false_values:
-            self.data = False
 
 class ChainForm(Form):
     task_id = SelectField("Task id", coerce=empty_or_integer, choices=[(t.task_id, f'{t.task_id}. {t.task_name}') for t in Model().get_all_tasks()])
@@ -478,7 +440,7 @@ class ChainExecutionConfigForm(Form):
     task_id = SelectField("Task type", coerce=empty_or_integer)
     chain_name = StringField("Chain name", filters=[lambda i: i or None])
     run_at = StringField("Cron style schedule", filters=[lambda i: ' '.join(i.split()) or None])
-    advanced_schedule = MyButtonBooleanField("Toggle advanced mode", default=True, render_kw={"hidden":True})
+    advanced_schedule = MyBooleanField("Toggle advanced mode", default=True)
     run_at_minute = SelectMultipleField("Run at minute", coerce=empty_or_integer, choices=[(i, i) for i in range(0,60, 5)], filters=[run_at_filter])
     run_at_hour = SelectMultipleField("Run at hour", coerce=empty_or_integer, choices=[(i, i) for i in range(0,24)], filters=[run_at_filter])
     run_at_day = SelectMultipleField("Run at day", coerce=empty_or_integer, choices=[(i, i) for i in range(0,31)], filters=[run_at_filter])
@@ -642,7 +604,7 @@ def add_chain_execution_configs():
     form.task_id.choices = [(t.task_id, f'{t.task_id}. {t.task_name}') for t in db.get_all_tasks()]
     if request.method == 'POST' and form.validate():
 
-        if form.run_at.data != None:
+        if form.advanced_schedule.data:
             cron = form.run_at.data
         else:
             cron_run_at_minute = ",".join([str(t) for t in form.run_at_minute.data])             if len(form.run_at_minute.data)         > 0 else "*"
@@ -680,7 +642,7 @@ def edit_chain_execution_configs(id):
     form.task_id.choices = [(None, "")]
     if request.method == 'POST' and form.validate():
 
-        if form.run_at.data != None:
+        if form.advanced_schedule.data:
             cron = form.run_at.data
         else:
             cron_run_at_minute = ",".join([str(t) for t in form.run_at_minute.data])             if len(form.run_at_minute.data)         > 0 else "*"
@@ -694,6 +656,11 @@ def edit_chain_execution_configs(id):
         db.update(chain_name=form.chain_name.data, run_at=cron, max_instances=form.max_instances.data, live=form.live.data, self_destruct=form.self_destruct.data, exclusive_execution=form.exclusive_execution.data, excluded_execution_configs=form.excluded_execution_configs.data, client_name=form.client_name.data)
         db.save_chain_config()
         return redirect(f"/chain_execution_config/{id}/", code=302)
+    form.run_at_minute.process_data(obj.run_at_minute)
+    form.run_at_hour.process_data(obj.run_at_hour)
+    form.run_at_day.process_data(obj.run_at_day)
+    form.run_at_month.process_data(obj.run_at_month)
+    form.run_at_day_of_week.process_data(obj.run_at_day_of_week)
     return render_template("edit_chain_execution_config.html", form=form)
 
 

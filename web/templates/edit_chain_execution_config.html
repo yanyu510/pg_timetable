@@ -15,17 +15,17 @@
               <div class="border rounded p-1 mb-4" id="schedule">
                 <div class="d-flex justify-content-center align-items-center">
                   <h3 class="m-0">Schedule</h3>
-		  {# {{ form.advanced_schedule(**{"class":"btn btn-secondary btn-sm  m-0" + (" active" if form.advanced_schedule.data else ""), "data-toggle":"button", "value":("true" if form.advanced_schedule.data else "false"), "aria-pressed":("true" if form.advanced_schedule.data else "false")})}} #}
-                  {{ render_field(form.advanced_schedule, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
+                  {{ form.advanced_schedule.label(class="btn btn-secondary btn-sm m-0" + (" active" if form.advanced_schedule.checked else "")) }}
+                  {{ form.advanced_schedule(hidden=True) }}
                 </div>
-		<div class="{{ ("d-none" if form.advanced_schedule.data else "") }}">
+		<div class="easymod{{ (" d-none" if form.advanced_schedule.checked else "") }}">
                   {{ render_field(form.run_at_minute, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_hour, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_day, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_month, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary")}}
                   {{ render_field(form.run_at_day_of_week, class="form-control selectpicker" + (" is-invalid" if form.errors else ""), data_style="btn-secondary") }}
                 </div>
-		<div class="{{ ("" if form.advanced_schedule.data else "d-none") }}">
+		<div class="advancedmod{{ ("" if form.advanced_schedule.checked else " d-none") }}">
                   {{ render_field(form.run_at, class="form-control" + (" is-invalid" if form.errors else "")) }}
                 </div>
               </div>
@@ -46,10 +46,10 @@
 
 {% block javascripts %}
 <script>
-$("label[for=advanced_schedule] button").on("click", function(){
-  $("#schedule > div").each(function() {
-    $(this).toggleClass("d-none")
-  })
+$("#advanced_schedule").on("change", function(){
+  $("#schedule .easymod").toggleClass("d-none", $(this).prop("checked"));
+  $("#schedule .advancedmod").toggleClass("d-none", !$(this).prop("checked"));
+  $("label[for=advanced_schedule]").toggleClass("active", $(this).prop("checked"));
 })
 $("#editchainconfigform").validate({
 	errorClass: "is-invalid",
