@@ -263,6 +263,7 @@ m_hours integer[];
 m_days integer[];
 m_months integer[];
 time timestamp;
+dates timestamp[];
 now timestamp := now();
 BEGIN
 a_by_minute := timetable.cron_element_to_array(run_at, 'minute');
@@ -290,7 +291,12 @@ m_months := ARRAY_AGG(month) from (
 	select CASE WHEN month IS NULL THEN date_part('month', now + interval '1 month') ELSE month END  as month from (select month from (select unnest(a_by_month) as month) as p1 where month > date_part('month', now) or month is null order by month limit 1) as p2 union
 	select CASE WHEN month IS NULL THEN 1 ELSE month END as month from (select min(month) as month from (select unnest(a_by_month) as month) as p3) p4) p5;
 
-time := min(date) from (select to_timestamp((year::text || '-' || month::text || '-' || day::text || ' ' || hour::text || ':' || minute::text)::text, 'YYYY-MM-DD HH24:MI') as date from (select  unnest(m_days) as day) as days CROSS JOIN (select unnest(m_months) as month) as months CROSS JOIN (select date_part('year', now) as year union select date_part('year', now + interval '1 year') as year) as years CROSS JOIN (select unnest(m_hours) as hour) as hours CROSS JOIN (select unnest(m_minutes) as minute) as minutes) as dates where date > date_trunc('minute', now);
+IF -1 = ANY(a_by_day_of_week) IS NULL THEN
+        time := min(date) from (select to_timestamp((year::text || '-' || month::text || '-' || day::text || ' ' || hour::text || ':' || minute::text)::text, 'YYYY-MM-DD HH24:MI') as date from (select  unnest(m_days) as day) as days CROSS JOIN (select unnest(m_months) as month) as months CROSS JOIN (select date_part('year', now) as year union select date_part('year', now + interval '1 year') as year) as years CROSS JOIN (select unnest(m_hours) as hour) as hours CROSS JOIN (select unnest(m_minutes) as minute) as minutes) as dates where date > date_trunc('minute', now);
+ELSE
+	dates := array_agg(date) from (select generate_series((date || '-01')::timestamp, ((date || '-01')::timestamp + interval '1 month'), '1 day'::interval) date from (select (year::text || '-' || month::text) as date from (select  unnest(m_days) as day) as days CROSS JOIN (select unnest(m_months) as month) as months CROSS JOIN (select date_part('year', now) as year union select date_part('year', now + interval '1 year') as year) as years CROSS JOIN (select unnest(m_hours) as hour) as hours CROSS JOIN (select unnest(m_minutes) as minute) as minutes) as dates) dates where date_part('dow', date) = ANY(a_by_day_of_week) or date_part('day', date) = ANY(m_days);
+        time := min(date) from (select (date + (hour || ' hour')::interval + (minute || ' minute')::interval) as date from (select  unnest(dates) as date) as dates CROSS JOIN (select unnest(m_hours) as hour) as hours CROSS JOIN (select unnest(m_minutes) as minute) as minutes) as dates where date > date_trunc('minute', now);
+END IF;
 
 RETURN time;
 END;
