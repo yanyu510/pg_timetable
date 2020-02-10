@@ -322,15 +322,24 @@ class Model(object):
         row = records[0]
         return Object(database_connection=row[0], connect_string=row[1], comment=row[2], error=validate_db_connection(row[1]))
 
+    def next_run(self, cron_string):
+        self.cur.execute(
+            "SELECT timetable.next_run(%s)", (cron_string,)
+        )
+        records = self.cur.fetchall()
+        if len(records) == 0:
+            return None
+        row = records[0]
+        return Object(next_run=row[0])
 
     def get_all_chain_configs(self):
         self.cur.execute(
-            "SELECT chain_execution_config, chain_id, chain_name, run_at, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config"
+            "SELECT chain_execution_config, chain_id, chain_name, run_at, timetable.next_run(run_at) next_run, max_instances, live, self_destruct, exclusive_execution, excluded_execution_configs, client_name FROM timetable.chain_execution_config"
         )
         records = self.cur.fetchall()
         result = []
         for row in records:
-            result.append(Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], max_instances=row[4], live=row[5], self_destruct=row[6], exclusive_execution=row[7], excluded_execution_configs=row[8], client_name=row[9]))
+            result.append(Object(chain_execution_config=row[0], chain_id=row[1], chain_name=row[2], run_at=row[3], next_run=row[4], max_instances=row[5], live=row[6], self_destruct=row[7], exclusive_execution=row[8], excluded_execution_configs=row[9], client_name=row[10]))
         return result
 
     def save_chain_config(self):
@@ -433,7 +442,7 @@ def run_at_filter(i, raise_error=False):
 
 
 
-cron_re = re.compile(r"^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) +){4}(([0-7],)+[0-7]|([0-7](\/|-)[0-7])|[0-7]|\*))$")
+cron_re = re.compile(r"^(((([0-5]?\d,)+[0-5]?\d|([0-5]?\d(\/|-)[0-5]?\d)|[0-5]?\d|\*) +)(((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) +){3}(([0-7],)+[0-7]|([0-7](\/|-)[0-7])|[0-7]|\*))$")
 
 class ChainExecutionConfigForm(Form):
     chain_execution_config = StringField("chain_execution_config")
@@ -474,6 +483,10 @@ class ChainExecutionConfigForm(Form):
         if field.data is not None:
             if not cron_re.match(field.data):
                 raise ValidationError("is not valid cron format")
+            try:
+                next_run = Model().next_run(field.data)
+            except Exception as e:
+                raise ValidationError(e)
         else:
             if form.advanced_schedule.data:
                 raise ValidationError("is required if you use advanced mode")
