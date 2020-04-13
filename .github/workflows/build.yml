@@ -1,5 +1,14 @@
-name: Build, vet and lint
-on: [push, pull_request]
+name: Go Build & Test
+on: 
+  push:
+    paths:
+      - '**.go'
+      - '**.yaml'
+      - '**.yml'      
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
 jobs:
 
   build:
