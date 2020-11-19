@@ -22,6 +22,7 @@ Application Options:
   -d, --dbname=                   PG config DB dbname (default: timetable) [$PGTT_PGDATABASE]
   -u, --user=                     PG config DB user (default: scheduler) [$PGTT_PGUSER]
   -f, --file=                     SQL script file to execute during startup
+  -t, --refetch-timeout=          The main loop period (default: 60)
       --password=                 PG config DB password (default: somestrong) [$PGTT_PGPASSWORD]
       --sslmode=[disable|require] What SSL priority use for connection (default: disable)
       --pgurl=                    PG config DB url [$PGTT_URL]

@@ -29,7 +29,7 @@ const (
 )
 
 //Run executes jobs. Returns Fa
-func Run(ctx context.Context, debug bool) RunStatus {
+func Run(ctx context.Context, refetchTimeoutOpts int, debug bool) RunStatus {
 	// create sleeping workers waiting data on channel
 	for w := 1; w <= workersNumber; w++ {
 		chainCtx, cancel := context.WithCancel(ctx)
@@ -39,6 +39,8 @@ func Run(ctx context.Context, debug bool) RunStatus {
 		defer cancel()
 		go intervalChainWorker(chainCtx, intervalChainsChan)
 	}
+	/* set main loop period **/
+	refetchTimeout := refetchTimeoutOpts
 	/* set maximum connection to workersNumber + 1 for system calls */
 	pgengine.ConfigDb.SetMaxOpenConns(workersNumber)
 	/* cleanup potential database leftovers */
@@ -67,7 +69,7 @@ func Run(ctx context.Context, debug bool) RunStatus {
 		go retriveIntervalChainsAndRun(ctx, sqlSelectIntervalChains)
 
 		select {
-		case <-time.After(refetchTimeout * time.Second):
+		case <-time.After(time.Duration(refetchTimeout) * time.Second):
 			// pass
 		case <-ctx.Done():
 			return ContextCancelled
