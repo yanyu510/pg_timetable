@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cybertec-postgresql/pg_timetable/internal/api"
 	"github.com/cybertec-postgresql/pg_timetable/internal/cmdparser"
 	"github.com/cybertec-postgresql/pg_timetable/internal/pgengine"
 	"github.com/cybertec-postgresql/pg_timetable/internal/scheduler"
@@ -45,7 +46,9 @@ func main() {
 		os.Exit(0)
 	}
 	pgengine.SetupCloseHandler()
-	for scheduler.Run(ctx, cmdOpts.RefetchTimeout, cmdOpts.Debug) == scheduler.ConnectionDroppped {
+	retrive := make(chan int)
+	go api.InitWebServer(retrive, cmdOpts.WebServerPort)
+	for scheduler.Run(ctx, cmdOpts.RefetchTimeout, cmdOpts.Debug, retrive) == scheduler.ConnectionDroppped {
 		pgengine.ReconnectDbAndFixLeftovers(ctx)
 	}
 }

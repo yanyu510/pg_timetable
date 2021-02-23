@@ -28,8 +28,17 @@ const (
 	ContextCancelled
 )
 
+func testSignalChan(retrive chan int) {
+	for {
+		time.Sleep(10 * time.Second)
+		retrive <- 3
+	}
+
+}
+
 //Run executes jobs. Returns Fa
-func Run(ctx context.Context, refetchTimeoutOpts int, debug bool) RunStatus {
+func Run(ctx context.Context, refetchTimeoutOpts int, debug bool, retrive chan int) RunStatus {
+
 	// create sleeping workers waiting data on channel
 	for w := 1; w <= workersNumber; w++ {
 		chainCtx, cancel := context.WithCancel(ctx)
@@ -70,6 +79,8 @@ func Run(ctx context.Context, refetchTimeoutOpts int, debug bool) RunStatus {
 
 		select {
 		case <-time.After(time.Duration(refetchTimeout) * time.Second):
+			// pass
+		case <-retrive:
 			// pass
 		case <-ctx.Done():
 			return ContextCancelled

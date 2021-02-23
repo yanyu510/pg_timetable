@@ -29,6 +29,7 @@ type CmdOptions struct {
 	NoHelpMessage  bool   `long:"no-help" hidden:"system use"`
 	Debug          bool   `long:"debug" description:"Run in debug mode. Only asynchronous chains will be executed"`
 	PostgresURL    DbURL  `long:"pgurl" description:"PG config DB url" env:"PGTT_URL"`
+	WebServerPort  string `long:"web-server-port" description:"Web server port" default:"10907" env:"PGTT_WEBSERVER_PORT"`
 }
 
 // NewCmdOptions returns a new instance of CmdOptions with default values
