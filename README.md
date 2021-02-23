@@ -28,7 +28,8 @@ Application Options:
       --pgurl=                    PG config DB url [$PGTT_URL]
       --init                      Initialize database schema and exit. Can be used with --upgrade
       --upgrade                   Upgrade database to the latest version
-      --no-program-tasks            Disable executing of PROGRAM tasks [$PGTT_NOPROGRAMTASKS]
+      --no-program-tasks          Disable executing of PROGRAM tasks [$PGTT_NOPROGRAMTASKS]
+      --web-server-port=          Web server port (default: 10907) [$PGTT_WEBSERVER_PORT]
 ```      
 
 ## Table of Contents
@@ -45,10 +46,11 @@ Application Options:
     - [3.3. Example usages](#33-example-usages)
   - [4. Database logging and transactions](#4-database-logging-and-transactions)
   - [5. Runtime information](#5-runtime-information)
-  - [6. Schema diagram](#6-schema-diagram)
-  - [7. Contributing](#7-contributing)
-  - [8. Support](#8-support)
-  - [9. Authors](#9-authors)
+  - [6. Web api](#6-web-api)
+  - [7. Schema diagram](#7-schema-diagram)
+  - [8. Contributing](#8-contributing)
+  - [9. Support](#9-support)
+  - [10. Authors](#10-authors)
 
 ## 1. Main features
 
@@ -279,24 +281,31 @@ Furthermore, this behavior allows a remote host to access the log in a straightf
 
 In order to examine the activity of **pg_timetable**, the table `timetable.run_status` can be queried. It contains information about active jobs and their current parameters.
 
-## 6. Schema diagram
+## 6. Web api
+
+1. Retrive task chains
+```sh
+curl http://ip:10907/retrive
+```
+
+## 7. Schema diagram
 
 ![Schema diagram](timetable_schema.png?raw=true "Schema diagram")
 
-## 7. Contributing
+## 8. Contributing
 
 If you want to contribute to **pg_timetable** and help make it better, feel free to open an [issue][issue] or even consider submitting a [pull request][PR].
 
 [issue]: https://github.com/cybertec-postgresql/pg_timetable/issues
 [PR]: https://github.com/cybertec-postgresql/pg_timetable/pulls
 
-## 8. Support
+## 9. Support
 
 For professional support, please contact [Cybertec][cybertec].
 
 [cybertec]: https://www.cybertec-postgresql.com/
 
 
-## 9. Authors
+## 10. Authors
 
 [Pavlo Golub](https://github.com/pashagolub) and [Hans-Jürgen Schönig](https://github.com/postgresql007).
