@@ -37,7 +37,7 @@ func testSignalChan(retrive chan int) {
 }
 
 //Run executes jobs. Returns Fa
-func Run(ctx context.Context, refetchTimeoutOpts int, debug bool, retrive chan int) RunStatus {
+func Run(ctx context.Context, refetchTimeoutOpts int, debug bool, retrieve chan int) RunStatus {
 
 	// create sleeping workers waiting data on channel
 	for w := 1; w <= workersNumber; w++ {
@@ -80,7 +80,7 @@ func Run(ctx context.Context, refetchTimeoutOpts int, debug bool, retrive chan i
 		select {
 		case <-time.After(time.Duration(refetchTimeout) * time.Second):
 			// pass
-		case <-retrive:
+		case <-retrieve:
 			// pass
 		case <-ctx.Done():
 			return ContextCancelled

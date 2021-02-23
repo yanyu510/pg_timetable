@@ -46,9 +46,9 @@ func main() {
 		os.Exit(0)
 	}
 	pgengine.SetupCloseHandler()
-	retrive := make(chan int)
-	go api.InitWebServer(retrive, cmdOpts.WebServerPort)
-	for scheduler.Run(ctx, cmdOpts.RefetchTimeout, cmdOpts.Debug, retrive) == scheduler.ConnectionDroppped {
+	retrieve := make(chan int)
+	go api.InitWebServer(retrieve, cmdOpts.WebServerPort)
+	for scheduler.Run(ctx, cmdOpts.RefetchTimeout, cmdOpts.Debug, retrieve) == scheduler.ConnectionDroppped {
 		pgengine.ReconnectDbAndFixLeftovers(ctx)
 	}
 }

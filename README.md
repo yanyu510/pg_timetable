@@ -283,9 +283,9 @@ In order to examine the activity of **pg_timetable**, the table `timetable.run_s
 
 ## 6. Web api
 
-1. Retrive task chains
+1. Retrieve task chains
 ```sh
-curl http://ip:10907/retrive
+curl http://ip:10907/retrieve
 ```
 
 ## 7. Schema diagram

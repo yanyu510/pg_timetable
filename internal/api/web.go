@@ -7,11 +7,11 @@ import (
 )
 
 // InitWebServer for web api
-func InitWebServer(retrive chan int, port string) {
+func InitWebServer(retrieve chan int, port string) {
 
 	// Handler request of retrive
-	http.HandleFunc("/retrive", func(w http.ResponseWriter, r *http.Request) {
-		retrive <- 1
+	http.HandleFunc("/retrieve", func(w http.ResponseWriter, r *http.Request) {
+		retrieve <- 1
 	})
 	pgengine.Log("LOG", "Webserver listening in ", port)
 	err := http.ListenAndServe(":"+port, nil)
