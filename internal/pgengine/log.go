@@ -46,7 +46,7 @@ func GetLogPrefixLn(level string) string {
 
 const logTemplate = `INSERT INTO timetable.log(pid, client_name, log_level, message) VALUES ($1, $2, $3, $4)`
 
-// LogToDB performs logging to standard output
+// Log performs logging to standard output
 func Log(level string, msg ...interface{}) {
 	if !VerboseLogLevel {
 		if level == "DEBUG" {

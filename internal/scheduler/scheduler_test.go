@@ -34,6 +34,6 @@ func TestRun(t *testing.T) {
 	assert.True(t, ok, "Creating program tasks failed")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	assert.Equal(t, Run(ctx, false), ContextCancelled)
+	assert.Equal(t, Run(ctx, 60, false, make(chan int)), ContextCancelled)
 
 }
